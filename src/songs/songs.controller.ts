@@ -5,6 +5,8 @@ import { UpdateSongDto } from './dto/update-song.dto';
 import { Express } from 'express'
 import { FileInterceptor } from '@nestjs/platform-express';
 
+const fileInterceptor = FileInterceptor('song', { dest: './storage/songs/' })
+
 const songFileValidator = new ParseFilePipeBuilder().addFileTypeValidator({
   fileType: 'audio/*'
 }).build()
@@ -14,12 +16,12 @@ export class SongsController {
   constructor(private readonly songsService: SongsService) {}
 
   @Post()
-  @UseInterceptors(FileInterceptor('song'))
+  @UseInterceptors(fileInterceptor)
   create(
     @Body() createSongDto: CreateSongDto,
     @UploadedFile(songFileValidator)  song: Express.Multer.File
   ) {
-    return this.songsService.create(createSongDto, song);
+    return this.songsService.create(createSongDto, song)
   }
 
   @Get()
@@ -29,16 +31,16 @@ export class SongsController {
 
   @Get(':id')
   findOne(@Param('id') id: string) {
-    return this.songsService.findOne(+id);
+    return this.songsService.findOne(id)
   }
 
   @Patch(':id')
   update(@Param('id') id: string, @Body() updateSongDto: UpdateSongDto) {
-    return this.songsService.update(+id, updateSongDto);
+    return this.songsService.update(id, updateSongDto)
   }
 
   @Delete(':id')
   remove(@Param('id') id: string) {
-    return this.songsService.remove(+id);
+    return this.songsService.remove(id)
   }
 }

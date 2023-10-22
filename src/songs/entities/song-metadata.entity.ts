@@ -29,4 +29,13 @@ export class SongMetadata {
   @Column({ nullable: true })
   lirycs: string
 
+  @Column({ nullable: true })
+  fileName: string
+  
+  @Column({ nullable: true })
+  mimeType: string
+
+  @Column({ nullable: true })
+  originalName: string
+
 }

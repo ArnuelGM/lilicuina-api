@@ -30,7 +30,7 @@ export class Song {
   @Column({ nullable: true })
   cover: string
 
-  @OneToOne(type => SongMetadata, (songMetadata) => songMetadata.song)
+  @OneToOne(() => SongMetadata, (songMetadata) => songMetadata.song, { cascade: true })
   metadata: Relation<SongMetadata>
 
   @CreateDateColumn()

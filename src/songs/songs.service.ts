@@ -1,3 +1,4 @@
+import { SongMetadata } from './entities/song-metadata.entity';
 import { Injectable } from '@nestjs/common';
 import { CreateSongDto } from './dto/create-song.dto';
 import { UpdateSongDto } from './dto/update-song.dto';
@@ -16,25 +17,38 @@ export class SongsService {
 
   async create(createSongDto: CreateSongDto, songFile: Express.Multer.File) {
   
-    const song = await this.songRespository.save(createSongDto)
-    console.log({ song })
-    return song
+    const songMetadata = new SongMetadata()
+    songMetadata.fileName = songFile.filename
+    songMetadata.mimeType = songFile.mimetype
+    songMetadata.originalName = songFile.originalname
 
+    const song = new Song()
+    Object.assign(song, createSongDto)
+    song.metadata = songMetadata
+
+    const data = await this.songRespository.save(song)
+    
+    return { data }
   }
 
-  findAll() {
-    return `This action returns all songs`;
+  async findAll() {
+    const data = await this.songRespository.find()
+    return { data } 
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} song`;
+  async findOne(id: string) {
+    const data = await this.songRespository.findOne({
+      where: { id },
+      relations: { metadata: true }
+    })
+    return { data } 
   }
 
-  update(id: number, updateSongDto: UpdateSongDto) {
-    return `This action updates a #${id} song`;
+  update(id: string, updateSongDto: UpdateSongDto) {
+    return `This action updates a #${id} song`
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} song`;
+  remove(id: string) {
+    return `This action removes a #${id} song`
   }
 }
