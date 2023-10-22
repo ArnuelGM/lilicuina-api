@@ -21,13 +21,10 @@ export class SongMetadata {
   song: Relation<Song>
 
   @Column({ nullable: true })
-  year: number
-
-  @Column({ nullable: true })
   duration: number
 
   @Column({ nullable: true })
-  lirycs: string
+  lyrics: string
 
   @Column({ nullable: true })
   fileName: string
