@@ -2,18 +2,24 @@ import { Injectable } from '@nestjs/common';
 import { CreateSongDto } from './dto/create-song.dto';
 import { UpdateSongDto } from './dto/update-song.dto';
 import { Express } from 'express'
+import { InjectRepository } from '@nestjs/typeorm';
+import { Song } from './entities/song.entity';
+import { Repository } from 'typeorm';
 
 @Injectable()
 export class SongsService {
 
-  create(createSongDto: CreateSongDto, song: Express.Multer.File) {
-    return {
-      ...createSongDto,
-      song: {
-        ...song,
-        buffer: song.buffer.toString()
-      }
-    };
+  constructor(
+    @InjectRepository(Song)
+    private songRespository: Repository<Song>
+  ){}
+
+  async create(createSongDto: CreateSongDto, songFile: Express.Multer.File) {
+  
+    const song = await this.songRespository.save(createSongDto)
+    console.log({ song })
+    return song
+
   }
 
   findAll() {
