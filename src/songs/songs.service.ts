@@ -6,9 +6,9 @@ import { Express } from 'express'
 import { InjectRepository } from '@nestjs/typeorm';
 import { Song } from './entities/song.entity';
 import { Repository } from 'typeorm';
-import * as ffprobe from 'ffprobe'
-import * as which from 'which'
-import * as albumArt from 'album-art'
+
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 
 @Injectable()
 export class SongsService {
@@ -16,22 +16,10 @@ export class SongsService {
   constructor( 
     @InjectRepository(Song)
     private songRespository: Repository<Song>,
-    
-    @InjectRepository(SongMetadata)
-    private metadataRepository: Repository<SongMetadata>
+
+    @InjectQueue('song-metadata')
+    private readonly audioQueue: Queue
   ){}
-
-  async updateMetadata(songMetadata: SongMetadata) {
-    const fileMetadata = await ffprobe(`./storage/songs/${songMetadata.fileName}`, { path: which.sync('ffprobe') })
-    songMetadata.duration = fileMetadata.streams[0].duration
-    return await this.metadataRepository.save(songMetadata)
-  }
-
-  async getAlbubArt(song: Song) {
-    const cover = await albumArt(song.artist, { album: song.album, size: 'large' })
-    song.cover = cover
-    return await this.songRespository.save(song)
-  }
 
   async create(createSongDto: CreateSongDto, songFile: Express.Multer.File) {
   
@@ -46,14 +34,8 @@ export class SongsService {
 
     const data = await this.songRespository.save(song)
 
-    // TODO: make this in queues
-    try {
-      this.getAlbubArt(song)
-      this.updateMetadata(songMetadata)
-    }
-    catch (error) {
-      console.log({error})
-    }
+    this.audioQueue.add('GetAlbumArt', song, {delay: 1000})
+    this.audioQueue.add('GetAudioDuration', songMetadata, {delay: 1000})
     
     return { data }
   }
