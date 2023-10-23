@@ -36,6 +36,7 @@ export class SongsService {
 
     this.audioQueue.add('GetAlbumArt', song, {delay: 1000})
     this.audioQueue.add('GetAudioDuration', songMetadata, {delay: 1000})
+    this.audioQueue.add('GenerateLyrics', songMetadata, {delay: 1000})
     
     return { data }
   }
