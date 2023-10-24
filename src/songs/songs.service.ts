@@ -1,5 +1,5 @@
 import { SongMetadata } from './entities/song-metadata.entity';
-import { Injectable } from '@nestjs/common';
+import { Injectable, StreamableFile } from '@nestjs/common';
 import { CreateSongDto } from './dto/create-song.dto';
 import { UpdateSongDto } from './dto/update-song.dto';
 import { Express } from 'express'
@@ -9,6 +9,7 @@ import { Repository } from 'typeorm';
 
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
+import { createReadStream } from 'node:fs';
 
 @Injectable()
 export class SongsService {
@@ -52,6 +53,12 @@ export class SongsService {
       relations: { metadata: true }
     })
     return { data } 
+  }
+
+  async getSongFile(id: string) {
+    const { data: { metadata: { fileName, mimeType } } } = await this.findOne(id)
+    const file = new StreamableFile(createReadStream(`./storage/songs/${fileName}`))
+    return {file, mimeType}
   }
 
   update(id: string, updateSongDto: UpdateSongDto) {

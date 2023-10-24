@@ -1,8 +1,8 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, ParseFilePipe, FileTypeValidator, ParseFilePipeBuilder, Header } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, ParseFilePipeBuilder, Res } from '@nestjs/common';
 import { SongsService } from './songs.service';
 import { CreateSongDto } from './dto/create-song.dto';
 import { UpdateSongDto } from './dto/update-song.dto';
-import { Express } from 'express'
+import { Response } from 'express'
 import { FileInterceptor } from '@nestjs/platform-express';
 
 const fileInterceptor = FileInterceptor('song', { dest: './storage/songs/' })
@@ -32,6 +32,14 @@ export class SongsController {
   @Get(':id')
   findOne(@Param('id') id: string) {
     return this.songsService.findOne(id)
+  }
+  
+  @Get(':id/file')
+  async getSongFile(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
+    const { file, mimeType } = await this.songsService.getSongFile(id)
+    //'Content-Disposition': 'attachment; filename="song"'
+    res.set({ 'Content-Type': mimeType })
+    return file
   }
 
   @Patch(':id')
