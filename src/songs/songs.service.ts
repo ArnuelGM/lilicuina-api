@@ -42,9 +42,32 @@ export class SongsService {
     return { data }
   }
 
-  async findAll() {
-    const data = await this.songRespository.find()
-    return { data } 
+  async findAll({ page = 1, perPage = 15 } = {}) {
+  
+    page = +page
+    perPage = +perPage
+
+    const skip = perPage * (page - 1)
+    const take = perPage
+    
+    const [data, total] = await this.songRespository.findAndCount({
+      order: {
+        createdAt: 'DESC'
+      },
+      skip,
+      take
+    })
+
+    return {
+      data,
+      meta: {
+        page: page,
+        perPage: perPage,
+        total,
+        count: data.length,
+        totalPages: Math.ceil(total / perPage)
+      }
+    } 
   }
 
   async findOne(id: string) {
@@ -62,10 +85,10 @@ export class SongsService {
   }
 
   update(id: string, updateSongDto: UpdateSongDto) {
-    return `This action updates a #${id} song`
+    return `This action updates a #${id} song, but not yet!!`
   }
 
   remove(id: string) {
-    return `This action removes a #${id} song`
+    return `This action removes a #${id} song, but not yet!!`
   }
 }

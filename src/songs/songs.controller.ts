@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, ParseFilePipeBuilder, Res } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, UseInterceptors, UploadedFile, ParseFilePipeBuilder, Res, Query } from '@nestjs/common';
 import { SongsService } from './songs.service';
 import { CreateSongDto } from './dto/create-song.dto';
 import { UpdateSongDto } from './dto/update-song.dto';
@@ -25,8 +25,8 @@ export class SongsController {
   }
 
   @Get()
-  findAll() {
-    return this.songsService.findAll();
+  findAll(@Query() query: any) {
+    return this.songsService.findAll(query);
   }
 
   @Get(':id')
