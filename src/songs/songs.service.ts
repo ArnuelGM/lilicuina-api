@@ -10,6 +10,7 @@ import { Repository } from 'typeorm';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { createReadStream } from 'node:fs';
+import { PaginationDto } from './dto/pagination.dto';
 
 @Injectable()
 export class SongsService {
@@ -42,10 +43,7 @@ export class SongsService {
     return { data }
   }
 
-  async findAll({ page = 1, perPage = 15 } = {}) {
-  
-    page = +page
-    perPage = +perPage
+  async findAll({ page, perPage }: PaginationDto) {
 
     const skip = perPage * (page - 1)
     const take = perPage

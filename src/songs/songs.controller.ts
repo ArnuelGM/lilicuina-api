@@ -4,6 +4,7 @@ import { CreateSongDto } from './dto/create-song.dto';
 import { UpdateSongDto } from './dto/update-song.dto';
 import { Response } from 'express'
 import { FileInterceptor } from '@nestjs/platform-express';
+import { PaginationDto } from './dto/pagination.dto';
 
 const fileInterceptor = FileInterceptor('song', { dest: './storage/songs/' })
 
@@ -25,7 +26,7 @@ export class SongsController {
   }
 
   @Get()
-  findAll(@Query() query: any) {
+  findAll(@Query() query: PaginationDto) {
     return this.songsService.findAll(query);
   }
 
