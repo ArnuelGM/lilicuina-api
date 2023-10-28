@@ -5,7 +5,7 @@ import { UpdateSongDto } from './dto/update-song.dto';
 import { Express } from 'express'
 import { InjectRepository } from '@nestjs/typeorm';
 import { Song } from './entities/song.entity';
-import { Repository } from 'typeorm';
+import { Like, Repository } from 'typeorm';
 
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
@@ -74,6 +74,29 @@ export class SongsService {
       relations: { metadata: true }
     })
     return { data } 
+  }
+
+  async search(search: string, { page, perPage }) {
+    
+    const [data, total] = await this.songRespository
+      .createQueryBuilder('song')
+      .where("song.title LIKE :title", { title: `%${search}%` })
+      .orWhere("song.artist LIKE :artist", { artist: `%${search}%` })
+      .orderBy('song.title', 'ASC')
+      .skip((page -1) * perPage)
+      .take(perPage)
+      .getManyAndCount()
+    
+    return {
+      data,
+      meta: {
+        page: page,
+        perPage: perPage,
+        total,
+        count: data.length,
+        totalPages: Math.ceil(total / perPage)
+      }
+    }
   }
 
   async getSongFile(id: string) {

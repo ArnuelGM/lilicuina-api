@@ -25,6 +25,11 @@ export class SongsController {
     return this.songsService.create(createSongDto, song)
   }
 
+  @Get('search')
+  searchSong(@Query('q') q: string, @Query() query: PaginationDto) {
+    return this.songsService.search(q, query)
+  }
+
   @Get()
   findAll(@Query() query: PaginationDto) {
     return this.songsService.findAll(query);
