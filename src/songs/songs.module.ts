@@ -6,6 +6,7 @@ import { Song } from './entities/song.entity';
 import { SongMetadata } from './entities/song-metadata.entity';
 import { BullModule } from '@nestjs/bull';
 import { SongsMetadataProcessor } from './job/songs.processor';
+import { SongsListener } from './listeners/songs.listener';
 
 @Module({
   imports: [
@@ -18,6 +19,10 @@ import { SongsMetadataProcessor } from './job/songs.processor';
     })
   ],
   controllers: [SongsController],
-  providers: [SongsService,SongsMetadataProcessor],
+  providers: [
+    SongsService,
+    SongsMetadataProcessor,
+    SongsListener
+  ],
 })
 export class SongsModule {}

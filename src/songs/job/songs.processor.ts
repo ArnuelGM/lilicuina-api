@@ -69,6 +69,7 @@ export class SongsMetadataProcessor {
         '-o', './storage/lyrics',
         '--verbose', 'False',
         '-f', 'srt',
+        '--device', 'cpu',
       ]
       this.logguer.debug(`${whisperCommand} ${commandParams.toString().replaceAll(',', ' ')}`)
       await spawn(whisperCommand, commandParams)

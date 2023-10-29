@@ -5,12 +5,11 @@ import { UpdateSongDto } from './dto/update-song.dto';
 import { Express } from 'express'
 import { InjectRepository } from '@nestjs/typeorm';
 import { Song } from './entities/song.entity';
-import { Like, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 
-import { InjectQueue } from '@nestjs/bull';
-import { Queue } from 'bull';
 import { createReadStream } from 'node:fs';
 import { PaginationDto } from './dto/pagination.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class SongsService {
@@ -18,9 +17,7 @@ export class SongsService {
   constructor( 
     @InjectRepository(Song)
     private songRespository: Repository<Song>,
-
-    @InjectQueue('song-metadata')
-    private readonly audioQueue: Queue
+    private eventEmitter: EventEmitter2
   ){}
 
   async create(createSongDto: CreateSongDto, songFile: Express.Multer.File) {
@@ -36,9 +33,7 @@ export class SongsService {
 
     const data = await this.songRespository.save(song)
 
-    this.audioQueue.add('GetAlbumArt', song, {delay: 1000})
-    this.audioQueue.add('GetAudioDuration', songMetadata, {delay: 1000})
-    this.audioQueue.add('GenerateLyrics', songMetadata, {delay: 1000})
+    this.eventEmitter.emitAsync('song.created', { song, songMetadata })
     
     return { data }
   }
