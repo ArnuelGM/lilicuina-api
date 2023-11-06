@@ -1,4 +1,4 @@
-import { Logger } from '@nestjs/common';
+import { Inject, Logger } from '@nestjs/common';
 import { Process, Processor } from '@nestjs/bull';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Job } from 'bull';
@@ -10,9 +10,22 @@ import * as ffprobe from 'ffprobe'
 import * as which from 'which'
 import * as spawn from 'await-spawn'
 import { readFileSync } from 'node:fs'
+import YTDlpWrap from 'yt-dlp-wrap';
+import { CreateSongDto } from '../dto/create-song.dto';
+import * as crypto from 'node:crypto'
+import { SongsService } from '../songs.service';
+
+export function createHash(seed = null) {
+  seed = seed ?? crypto.randomUUID()
+  return crypto.randomUUID()
+  //return crypto.createHash('md5').update(seed).digest('hex')
+}
 
 @Processor('song-metadata')
 export class SongsMetadataProcessor {
+
+  @Inject(SongsService)
+  private songService: SongsService
 
   @InjectRepository(Song)
   private songRespository: Repository<Song>
@@ -49,7 +62,7 @@ export class SongsMetadataProcessor {
       songMetadata.duration = fileMetadata.streams[0].duration
       await this.metadataRepository.save(songMetadata)
     } catch (error) {
-      this.logguer.error(`Error when get audio diration for ${job.data.id}`)
+      this.logguer.error(`Error when get audio duration for ${job.data.id}`)
       this.logguer.error(error)
     }
     finally {
@@ -83,5 +96,33 @@ export class SongsMetadataProcessor {
     finally {
       this.logguer.log(`End generate lyrics for ${filePath}`)
     }
+  }
+
+  @Process('DownloadYoutube')
+  async handleDownloadYoutube(job: Job<CreateSongDto>) {
+
+    const ytDlpWrap = new YTDlpWrap('./yt-dlp')
+    const filename = createHash()
+    const metadata = await ytDlpWrap.getVideoInfo(job.data.youtubeLink)
+
+    ytDlpWrap.exec([
+      job.data.youtubeLink,
+      '-f',
+      'bestaudio[ext=mp3]/best',
+      '--audio-multistreams',
+      '-o',
+      `./storage/songs/${filename}`
+    ])
+    .on('error', () => {
+      this.logguer.error(`Error when get video from YoutTube ${job.data.youtubeLink}`)
+    })
+    .on('close', () => {
+      this.songService.create(
+        job.data,
+        ({ filename, mimetype: 'audio/mpeg', originalname: metadata.title } as Express.Multer.File),
+        metadata
+      )
+    })
+
   }
 }

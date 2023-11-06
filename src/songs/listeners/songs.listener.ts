@@ -1,3 +1,4 @@
+import { CreateSongDto } from './../dto/create-song.dto';
 import { Injectable, Logger } from "@nestjs/common";
 import { OnEvent } from "@nestjs/event-emitter";
 import { SongMetadata } from "../entities/song-metadata.entity";
@@ -20,7 +21,9 @@ export class SongsListener {
 
     try {
       this.audioQueue.add('GetAlbumArt', song)
-      this.audioQueue.add('GetAudioDuration', songMetadata)
+      if (!songMetadata.duration) {
+        this.audioQueue.add('GetAudioDuration', songMetadata)
+      }
       this.audioQueue.add('GenerateLyrics', songMetadata)
     }
     catch (error) {
@@ -29,4 +32,11 @@ export class SongsListener {
 
   }
 
+
+  @OnEvent('song.youtube')
+  handleSongFromYoutube(createSongDto: CreateSongDto) {
+
+    this.audioQueue.add('DownloadYoutube', createSongDto)
+
+  }
 }

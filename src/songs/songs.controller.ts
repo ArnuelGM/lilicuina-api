@@ -25,6 +25,13 @@ export class SongsController {
     return this.songsService.create(createSongDto, song)
   }
 
+  @Post('youtube')
+  createYoutube(
+    @Body() createSongDto: CreateSongDto,
+  ) {
+    return this.songsService.createYoutube(createSongDto)
+  }
+
   @Get('search')
   searchSong(@Query('q') q: string, @Query() query: PaginationDto) {
     return this.songsService.search(q, query)
@@ -44,7 +51,10 @@ export class SongsController {
   async getSongFile(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
     const { file, mimeType } = await this.songsService.getSongFile(id)
     //'Content-Disposition': 'attachment; filename="song"'
-    res.set({ 'Content-Type': mimeType })
+    res.set({
+      'Content-Type': mimeType,
+      'Transfer-Encoding': 'chunked'
+    })
     return file
   }
 

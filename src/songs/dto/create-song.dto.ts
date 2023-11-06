@@ -1,4 +1,4 @@
-import { IsNotEmpty, IsOptional, IsString } from "class-validator"
+import { IsNotEmpty, IsOptional, IsString, IsUrl } from "class-validator"
 
 export class CreateSongDto {
 
@@ -14,4 +14,8 @@ export class CreateSongDto {
   @IsOptional()
   album: string
 
+  @IsString()
+  @IsUrl()
+  @IsOptional()
+  youtubeLink: string
 }

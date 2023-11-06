@@ -20,15 +20,24 @@ export class SongsService {
     private eventEmitter: EventEmitter2
   ){}
 
-  async create(createSongDto: CreateSongDto, songFile: Express.Multer.File) {
+  async create(createSongDto: CreateSongDto, songFile: Express.Multer.File, songMetadataOptions?: any) {
   
     const songMetadata = new SongMetadata()
     songMetadata.fileName = songFile.filename
     songMetadata.mimeType = songFile.mimetype
     songMetadata.originalName = songFile.originalname
+    if (songMetadataOptions?.duration) {
+      songMetadata.duration = songMetadataOptions.duration
+    }
 
     const song = new Song()
     Object.assign(song, createSongDto)
+    if (!createSongDto?.artist && songMetadataOptions.artist) {
+      song.artist = songMetadataOptions.artist
+    }
+    if (!createSongDto?.album && songMetadataOptions.album) {
+      song.album = songMetadataOptions.album
+    }
     song.metadata = songMetadata
 
     const data = await this.songRespository.save(song)
@@ -36,6 +45,13 @@ export class SongsService {
     this.eventEmitter.emitAsync('song.created', { song, songMetadata })
     
     return { data }
+  }
+
+  async createYoutube(createSongDto: CreateSongDto) {
+
+    this.eventEmitter.emitAsync('song.youtube', createSongDto)
+
+    return {data: createSongDto}
   }
 
   async findAll({ page, perPage }: PaginationDto) {
