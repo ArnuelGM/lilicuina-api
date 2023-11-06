@@ -32,6 +32,7 @@ export class SongsService {
 
     const song = new Song()
     Object.assign(song, createSongDto)
+    song.cover = songMetadataOptions?.thumbnail ?? ''
     if (!createSongDto?.artist && songMetadataOptions.artist) {
       song.artist = songMetadataOptions.artist
     }
