@@ -9,7 +9,7 @@ import * as albumArt from 'album-art'
 import * as ffprobe from 'ffprobe'
 import * as which from 'which'
 import * as spawn from 'await-spawn'
-import { readFileSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 import YTDlpWrap from 'yt-dlp-wrap';
 import { CreateSongDto } from '../dto/create-song.dto';
 import * as crypto from 'node:crypto'
@@ -88,6 +88,7 @@ export class SongsMetadataProcessor {
       await spawn(whisperCommand, commandParams)
       const songMetadata = await this.metadataRepository.findOneBy({ id: job.data.id })
       songMetadata.lyrics = readFileSync(`./storage/lyrics/${job.data.fileName}.srt`).toString()
+      rmSync(`./storage/lyrics/${job.data.fileName}.srt`)
       await this.metadataRepository.save(songMetadata)
     } catch (error) {
       this.logguer.error(`Error when generate lyrics for ${filePath}`)
@@ -108,7 +109,7 @@ export class SongsMetadataProcessor {
     ytDlpWrap.exec([
       job.data.youtubeLink,
       '-f',
-      'bestaudio[ext=mp3]/best',
+      'bestaudio/best',
       '--audio-multistreams',
       '-o',
       `./storage/songs/${filename}`
@@ -116,13 +117,30 @@ export class SongsMetadataProcessor {
     .on('error', () => {
       this.logguer.error(`Error when get video from YoutTube ${job.data.youtubeLink}`)
     })
-    .on('close', () => {
+    .on('close', async () => {
+      await this.convertToMp3(`./storage/songs/${filename}`)
+      rmSync(`./storage/songs/${filename}`)
       this.songService.create(
         job.data,
-        ({ filename, mimetype: 'audio/mpeg', originalname: metadata.title } as Express.Multer.File),
+        ({ filename: `${filename}.mp3`, mimetype: 'audio/mpeg', originalname: metadata.title } as Express.Multer.File),
         metadata
       )
     })
 
+  }
+
+  async convertToMp3(filePath: string) {
+    // ffmpeg -i <filePath> -vn -ar 44100 -ac 2 -b:a 192k <output>.mp3
+    const ffmpegCommand = which.sync('ffmpeg')
+    const output = `${filePath}.mp3`
+    const commandParams = [
+      '-i', filePath,
+      '-vn', '-ar', '44100',
+      '-ac', '2', 
+      '-b:a', '192k',
+      output
+    ]
+    await spawn(ffmpegCommand, commandParams)
+    return output
   }
 }
