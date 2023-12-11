@@ -49,10 +49,14 @@ export class SongsMetadataProcessor {
       this.logguer.error(error)
     }
     finally {
-      this.logguer.log(`End get album art for ${job.data.id}...\n`)
+      this.logguer.log(`End get album art for ${job.data.id}\n`)
     }
   }
   
+  /**
+   * Get audio duration in seconds
+   * NOTE: install ffmpeg 
+   */
   @Process('GetAudioDuration')
   async handleGetAudioDuration(job: Job<SongMetadata>) {
     this.logguer.log(`Starting get get audio duration for ${job.data.id}...\n`)
@@ -66,10 +70,14 @@ export class SongsMetadataProcessor {
       this.logguer.error(error)
     }
     finally {
-      this.logguer.log(`End get get audio duration for ${job.data.id}...\n`)
+      this.logguer.log(`End get get audio duration for ${job.data.id}\n`)
     }
   }
 
+  /**
+   * Generate Lyrics with openai whisper
+   * Repository: https://github.com/openai/whisper
+   */
   @Process('GenerateLyrics')
   async handleGenerateLyrics(job: Job<SongMetadata>) {
     const filePath = `./storage/songs/${job.data.fileName}`
@@ -99,6 +107,10 @@ export class SongsMetadataProcessor {
     }
   }
 
+  /**
+   * Download audio from youtube
+   * Get binary from: https://github.com/yt-dlp/yt-dlp/releases
+   */
   @Process('DownloadYoutube')
   async handleDownloadYoutube(job: Job<CreateSongDto>) {
 
@@ -129,6 +141,9 @@ export class SongsMetadataProcessor {
 
   }
 
+  /**
+   * Convert audio file to .mp3 format
+   */
   async convertToMp3(filePath: string) {
     // ffmpeg -i <filePath> -vn -ar 44100 -ac 2 -b:a 192k <output>.mp3
     const ffmpegCommand = which.sync('ffmpeg')

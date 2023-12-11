@@ -64,8 +64,8 @@ export class SongsService {
       order: {
         createdAt: 'DESC'
       },
-      skip,
-      take
+      /* skip,
+      take */
     })
 
     return {
