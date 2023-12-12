@@ -49,7 +49,7 @@ export class SongsController {
   
   @Get(':id/file')
   async getSongFile(@Param('id') id: string, @Res({ passthrough: true }) res: Response) {
-    const { file, mimeType } = await this.songsService.getSongFile(id)
+    const {file, mimeType} = await this.songsService.getSongFile(id)
     //'Content-Disposition': 'attachment; filename="song"'
     res.set({
       'Content-Type': mimeType,

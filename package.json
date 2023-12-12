@@ -24,6 +24,7 @@
   "dependencies": {
     "@nestjs/bull": "^10.0.1",
     "@nestjs/common": "^10.0.0",
+    "@nestjs/config": "^3.1.1",
     "@nestjs/core": "^10.0.0",
     "@nestjs/event-emitter": "^2.0.2",
     "@nestjs/mapped-types": "*",
@@ -31,6 +32,7 @@
     "@nestjs/typeorm": "^10.0.0",
     "album-art": "3.1.1",
     "await-spawn": "4.0.2",
+    "aws-sdk": "^2.1515.0",
     "bull": "^4.11.4",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",

@@ -37,3 +37,5 @@ lerna-debug.log*
 /database.db
 /storage/songs/*
 /storage/lyrics/*
+
+.env

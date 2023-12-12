@@ -7,6 +7,7 @@ import { SongMetadata } from './entities/song-metadata.entity';
 import { BullModule } from '@nestjs/bull';
 import { SongsMetadataProcessor } from './job/songs.processor';
 import { SongsListener } from './listeners/songs.listener';
+import { StorageModule } from 'src/storage/storage.module';
 
 @Module({
   imports: [
@@ -16,7 +17,8 @@ import { SongsListener } from './listeners/songs.listener';
     ]),
     BullModule.registerQueue({
       name: 'song-metadata'
-    })
+    }),
+    StorageModule
   ],
   controllers: [SongsController],
   providers: [

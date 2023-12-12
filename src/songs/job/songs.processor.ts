@@ -14,6 +14,9 @@ import YTDlpWrap from 'yt-dlp-wrap';
 import { CreateSongDto } from '../dto/create-song.dto';
 import * as crypto from 'node:crypto'
 import { SongsService } from '../songs.service';
+import { S3 } from 'aws-sdk';
+import { StorageService } from 'src/storage/storage.service';
+import { ConfigService } from '@nestjs/config';
 
 export function createHash(seed = null) {
   seed = seed ?? crypto.randomUUID()
@@ -32,6 +35,12 @@ export class SongsMetadataProcessor {
 
   @InjectRepository(SongMetadata)
   private metadataRepository: Repository<SongMetadata>
+
+  @Inject(StorageService)
+  private storage: StorageService
+
+  @Inject(ConfigService)
+  private config: ConfigService
 
   private readonly logguer = new Logger(SongsMetadataProcessor.name)
 
@@ -80,7 +89,8 @@ export class SongsMetadataProcessor {
    */
   @Process('GenerateLyrics')
   async handleGenerateLyrics(job: Job<SongMetadata>) {
-    const filePath = `./storage/songs/${job.data.fileName}`
+    const localStoragePath = this.config.get('LOCAL_STORAGE_PATH') ?? './storage/songs'
+    const filePath = `${localStoragePath}/${job.data.fileName}`
     this.logguer.log(`Starting generate lyrics for ${filePath}`)
     try {
       const whisperCommand = which.sync('whisper')
@@ -117,6 +127,8 @@ export class SongsMetadataProcessor {
     const ytDlpWrap = new YTDlpWrap('./yt-dlp')
     const filename = createHash()
     const metadata = await ytDlpWrap.getVideoInfo(job.data.youtubeLink)
+    const localStoragePath = this.config.get('LOCAL_STORAGE_PATH') ?? './storage/songs'
+    const filenamePath = `${localStoragePath}/${filename}`
 
     ytDlpWrap.exec([
       job.data.youtubeLink,
@@ -124,14 +136,21 @@ export class SongsMetadataProcessor {
       'bestaudio/best',
       '--audio-multistreams',
       '-o',
-      `./storage/songs/${filename}`
+      filenamePath
     ])
     .on('error', () => {
       this.logguer.error(`Error when get video from YoutTube ${job.data.youtubeLink}`)
     })
     .on('close', async () => {
-      await this.convertToMp3(`./storage/songs/${filename}`)
-      rmSync(`./storage/songs/${filename}`)
+
+      await this.convertToMp3(filenamePath)
+
+      if(this.config.get<boolean>('ENABLE_REMOTE_STORAGE')) {
+        this.uploadToS3(`${filenamePath}.mp3`, `${filename}.mp3`)
+      }
+
+      rmSync(filenamePath)
+      
       this.songService.create(
         job.data,
         ({ filename: `${filename}.mp3`, mimetype: 'audio/mpeg', originalname: metadata.title } as Express.Multer.File),
@@ -157,5 +176,21 @@ export class SongsMetadataProcessor {
     ]
     await spawn(ffmpegCommand, commandParams)
     return output
+  }
+
+  /**
+   * Upload object to s3
+   */
+  async uploadToS3(filePath: string, key: string) {
+    return await new Promise(async (resolve, reject) => {
+      try {
+        const data = await this.storage.putObjectRemote(key, readFileSync(filePath), 'audio/mpeg')
+        rmSync(filePath)
+        resolve(data)
+      }
+      catch(error) {
+        reject(error)
+      }
+    })
   }
 }

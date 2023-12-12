@@ -2,14 +2,13 @@ import { SongMetadata } from './entities/song-metadata.entity';
 import { Injectable, StreamableFile } from '@nestjs/common';
 import { CreateSongDto } from './dto/create-song.dto';
 import { UpdateSongDto } from './dto/update-song.dto';
-import { Express } from 'express'
 import { InjectRepository } from '@nestjs/typeorm';
 import { Song } from './entities/song.entity';
 import { Repository } from 'typeorm';
-
-import { createReadStream } from 'node:fs';
 import { PaginationDto } from './dto/pagination.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { StorageService } from 'src/storage/storage.service';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class SongsService {
@@ -17,7 +16,9 @@ export class SongsService {
   constructor( 
     @InjectRepository(Song)
     private songRespository: Repository<Song>,
-    private eventEmitter: EventEmitter2
+    private eventEmitter: EventEmitter2,
+    private storage: StorageService,
+    private config: ConfigService
   ){}
 
   async create(createSongDto: CreateSongDto, songFile: Express.Multer.File, songMetadataOptions?: any) {
@@ -113,8 +114,20 @@ export class SongsService {
 
   async getSongFile(id: string) {
     const { data: { metadata: { fileName, mimeType } } } = await this.findOne(id)
-    const file = new StreamableFile(createReadStream(`./storage/songs/${fileName}`))
-    return {file, mimeType}
+    return await new Promise<{file: StreamableFile, mimeType: string}>(async (resolve, reject) => {
+      try {
+        const data: any = await this.storage.getObject(fileName)
+        console.log({data})
+        const result = {
+          mimeType,
+          file: new StreamableFile(data?.Body ? data.Body : data)
+        }
+        resolve(result)
+      }
+      catch(error) {
+        reject(error)
+      }
+    })
   }
 
   update(id: string, updateSongDto: UpdateSongDto) {
