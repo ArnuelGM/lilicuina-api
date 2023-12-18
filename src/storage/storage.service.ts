@@ -1,7 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { S3 } from 'aws-sdk';
-import { readFile } from 'fs/promises';
+import { readFile, writeFile } from 'fs/promises';
 
 @Injectable()
 export class StorageService {
@@ -56,6 +56,11 @@ export class StorageService {
         else resolve(data)
       })
     })
+  }
+
+  putObjectLocal(filename: string, body: Buffer, path?: string) {
+    path = path ?? this.config.get('LOCAL_STORAGE_PATH')
+    return writeFile(`${path}/${filename}`, body)
   }
 
 }

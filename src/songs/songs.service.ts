@@ -8,7 +8,7 @@ import { Repository } from 'typeorm';
 import { PaginationDto } from './dto/pagination.dto';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { StorageService } from 'src/storage/storage.service';
-import { ConfigService } from '@nestjs/config';
+import { createHash } from './song.utils';
 
 @Injectable()
 export class SongsService {
@@ -17,14 +17,13 @@ export class SongsService {
     @InjectRepository(Song)
     private songRespository: Repository<Song>,
     private eventEmitter: EventEmitter2,
-    private storage: StorageService,
-    private config: ConfigService
+    private storage: StorageService
   ){}
 
   async create(createSongDto: CreateSongDto, songFile: Express.Multer.File, songMetadataOptions?: any) {
-  
+
     const songMetadata = new SongMetadata()
-    songMetadata.fileName = songFile.filename
+    songMetadata.fileName = `${createHash()}.mp3`
     songMetadata.mimeType = songFile.mimetype
     songMetadata.originalName = songFile.originalname
     if (songMetadataOptions?.duration) {
@@ -37,23 +36,16 @@ export class SongsService {
     if (!createSongDto?.artist && songMetadataOptions.artist) {
       song.artist = songMetadataOptions.artist
     }
-    if (!createSongDto?.album && songMetadataOptions.album) {
+    if (!createSongDto?.album && songMetadataOptions?.album) {
       song.album = songMetadataOptions.album
     }
     song.metadata = songMetadata
 
     const data = await this.songRespository.save(song)
 
-    this.eventEmitter.emitAsync('song.created', { song, songMetadata })
+    this.eventEmitter.emitAsync('song.created', { song, songMetadata, songFile })
     
     return { data }
-  }
-
-  async createYoutube(createSongDto: CreateSongDto) {
-
-    this.eventEmitter.emitAsync('song.youtube', createSongDto)
-
-    return {data: createSongDto}
   }
 
   async findAll({ page, perPage }: PaginationDto) {
@@ -117,10 +109,10 @@ export class SongsService {
     return await new Promise<{file: StreamableFile, mimeType: string}>(async (resolve, reject) => {
       try {
         const data: any = await this.storage.getObject(fileName)
-        console.log({data})
+        const file = new StreamableFile(data?.Body ? data.Body : data)
         const result = {
           mimeType,
-          file: new StreamableFile(data?.Body ? data.Body : data)
+          file
         }
         resolve(result)
       }

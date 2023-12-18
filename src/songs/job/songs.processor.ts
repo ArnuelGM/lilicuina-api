@@ -6,23 +6,20 @@ import { Song } from '../entities/song.entity';
 import { SongMetadata } from '../entities/song-metadata.entity';
 import { Repository } from 'typeorm';
 import * as albumArt from 'album-art'
-import * as ffprobe from 'ffprobe'
 import * as which from 'which'
 import * as spawn from 'await-spawn'
 import { readFileSync, rmSync } from 'node:fs'
-import YTDlpWrap from 'yt-dlp-wrap';
 import { CreateSongDto } from '../dto/create-song.dto';
-import * as crypto from 'node:crypto'
 import { SongsService } from '../songs.service';
-import { S3 } from 'aws-sdk';
-import { StorageService } from 'src/storage/storage.service';
 import { ConfigService } from '@nestjs/config';
-
-export function createHash(seed = null) {
-  seed = seed ?? crypto.randomUUID()
-  return crypto.randomUUID()
-  //return crypto.createHash('md5').update(seed).digest('hex')
-}
+import { 
+  bufferToStream, 
+  createHash, 
+  downloadFromYoutube, 
+  getDurationInSeconds, 
+  getVideoInfo, 
+  toMp3 
+} from '../song.utils';
 
 @Processor('song-metadata')
 export class SongsMetadataProcessor {
@@ -35,9 +32,6 @@ export class SongsMetadataProcessor {
 
   @InjectRepository(SongMetadata)
   private metadataRepository: Repository<SongMetadata>
-
-  @Inject(StorageService)
-  private storage: StorageService
 
   @Inject(ConfigService)
   private config: ConfigService
@@ -67,19 +61,24 @@ export class SongsMetadataProcessor {
    * NOTE: install ffmpeg 
    */
   @Process('GetAudioDuration')
-  async handleGetAudioDuration(job: Job<SongMetadata>) {
-    this.logguer.log(`Starting get get audio duration for ${job.data.id}...\n`)
+  async handleGetAudioDuration(job: Job<{songMetadata: SongMetadata, songFile: any}>) {
+    
+    const {songMetadata, songFile} = job.data
+    const songBuffer = Buffer.from(songFile?.buffer?.data) ?? songFile?.buffer
+
+    this.logguer.log(`Starting get get audio duration for ${songMetadata.id}...\n`)
+    
     try {
-      const songMetadata = await this.metadataRepository.findOneBy({ id: job.data.id })
-      const fileMetadata = await ffprobe(`./storage/songs/${songMetadata.fileName}`, { path: which.sync('ffprobe') })
-      songMetadata.duration = fileMetadata.streams[0].duration
-      await this.metadataRepository.save(songMetadata)
+
+      songMetadata.duration = getDurationInSeconds( await toMp3( bufferToStream(songBuffer) ))
+      this.metadataRepository.save(songMetadata)
+
     } catch (error) {
-      this.logguer.error(`Error when get audio duration for ${job.data.id}`)
+      this.logguer.error(`Error when get audio duration for ${songMetadata.id}`)
       this.logguer.error(error)
     }
     finally {
-      this.logguer.log(`End get get audio duration for ${job.data.id}\n`)
+      this.logguer.log(`End get audio duration for ${songMetadata.id}\n`)
     }
   }
 
@@ -117,80 +116,42 @@ export class SongsMetadataProcessor {
     }
   }
 
-  /**
-   * Download audio from youtube
-   * Get binary from: https://github.com/yt-dlp/yt-dlp/releases
-   */
+
   @Process('DownloadYoutube')
   async handleDownloadYoutube(job: Job<CreateSongDto>) {
-
-    const ytDlpWrap = new YTDlpWrap('./yt-dlp')
-    const filename = createHash()
-    const metadata = await ytDlpWrap.getVideoInfo(job.data.youtubeLink)
-    const localStoragePath = this.config.get('LOCAL_STORAGE_PATH') ?? './storage/songs'
-    const filenamePath = `${localStoragePath}/${filename}`
-
-    ytDlpWrap.exec([
-      job.data.youtubeLink,
-      '-f',
-      'bestaudio/best',
-      '--audio-multistreams',
-      '-o',
-      filenamePath
-    ])
-    .on('error', () => {
-      this.logguer.error(`Error when get video from YoutTube ${job.data.youtubeLink}`)
-    })
-    .on('close', async () => {
-
-      await this.convertToMp3(filenamePath)
-
-      if(this.config.get<boolean>('ENABLE_REMOTE_STORAGE')) {
-        this.uploadToS3(`${filenamePath}.mp3`, `${filename}.mp3`)
-      }
-
-      rmSync(filenamePath)
+    
+    try {
       
+      const url = job.data.youtubeLink
+      
+      const metadata = await getVideoInfo(url)
+
+      const data = await downloadFromYoutube(url)
+  
+      this.logguer.debug(`YouTube data downloaded from: ${url}`)
+
+      const buffer = await toMp3( bufferToStream(data) )
+      
+      /* if(!this.config.get<boolean>('ENABLE_REMOTE_STORAGE')) {
+        const filenamePath = `${path}/${filename}`
+        await this.storage.putObjectLocal(filename, buffer, path)
+      } */
+
       this.songService.create(
         job.data,
-        ({ filename: `${filename}.mp3`, mimetype: 'audio/mpeg', originalname: metadata.title } as Express.Multer.File),
+        { 
+          filename: `${createHash()}.mp3`, 
+          mimetype: 'audio/mpeg', 
+          originalname: metadata.title, 
+          buffer 
+        } as Express.Multer.File,
         metadata
       )
-    })
 
-  }
+    } catch (error) {
+      this.logguer.error(`Error when get video from YoutTube ${job.data.youtubeLink}`)
+      this.logguer.error(error)
+    }
 
-  /**
-   * Convert audio file to .mp3 format
-   */
-  async convertToMp3(filePath: string) {
-    // ffmpeg -i <filePath> -vn -ar 44100 -ac 2 -b:a 192k <output>.mp3
-    const ffmpegCommand = which.sync('ffmpeg')
-    const output = `${filePath}.mp3`
-    const commandParams = [
-      '-i', filePath,
-      '-vn', '-ar', '44100',
-      '-ac', '2', 
-      '-b:a', '192k',
-      output
-    ]
-    await spawn(ffmpegCommand, commandParams)
-    return output
-  }
-
-  /**
-   * Upload object to s3
-   */
-  async uploadToS3(filePath: string, key: string) {
-    return await new Promise(async (resolve, reject) => {
-      try {
-        const data = await this.storage.putObjectRemote(key, readFileSync(filePath), 'audio/mpeg')
-        rmSync(filePath)
-        resolve(data)
-      }
-      catch(error) {
-        reject(error)
-      }
-    })
   }
 }
